@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: astra_health_db
+      POSTGRES_USER: ${ASTRA_DATABASE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${ASTRA_DATABASE_PASSWORD:?Set ASTRA_DATABASE_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      ASTRA_DATABASE_URL: jdbc:postgresql://db:5432/astra_health_db
+      ASTRA_DATABASE_USERNAME: ${ASTRA_DATABASE_USERNAME:-postgres}
+      ASTRA_DATABASE_PASSWORD: ${ASTRA_DATABASE_PASSWORD:?Set ASTRA_DATABASE_PASSWORD in .env}
+      ASTRA_JWT_SECRET: ${ASTRA_JWT_SECRET:?Set ASTRA_JWT_SECRET in .env}
+      ASTRA_BOOTSTRAP_ADMIN_EMAIL: ${ASTRA_BOOTSTRAP_ADMIN_EMAIL:?Set ASTRA_BOOTSTRAP_ADMIN_EMAIL in .env}
+      ASTRA_BOOTSTRAP_ADMIN_PASSWORD: ${ASTRA_BOOTSTRAP_ADMIN_PASSWORD:?Set ASTRA_BOOTSTRAP_ADMIN_PASSWORD in .env}
+      ASTRA_CORS_ALLOWED_ORIGINS: ${ASTRA_CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+      ASTRA_OPENAPI_ENABLED: ${ASTRA_OPENAPI_ENABLED:-true}
+      ASTRA_AUDIO_STORAGE_DIR: /var/lib/astra-health/audio
+    ports:
+      - "8080:8080"
+    volumes:
+      - audio_data:/var/lib/astra-health/audio
+    depends_on:
+      db:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  audio_data:

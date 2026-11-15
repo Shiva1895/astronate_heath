@@ -1,0 +1,806 @@
+
+@accessToken = {{loginAstronaut.response.body.$.accessToken}}
+@refreshToken = {{loginAstronaut.response.body.$.refreshToken}}
+@adminAccessToken = {{loginAdministrator.response.body.$.accessToken}}
+@medicalOfficerAccessToken = PASTE_MEDICAL_OFFICER_ACCESS_TOKEN
+@missionControlAccessToken = PASTE_MISSION_CONTROL_ACCESS_TOKEN
+@wellbeingAudioId = {{uploadWellbeingAudio.response.body.$.id}}
+@wellbeingReportId = {{submitWellbeingReport.response.body.$.id}}
+@notificationId = {{listNotifications.response.body.$.content[0].id}}
+
+### Create a new astronaut
+POST http://localhost:8080/api/v1/astronauts
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "astronautCode": "AST-007",
+  "fullName": "Alex Morgan",
+  "email": "alex@example.com",
+  "status": "ACTIVE"
+}
+
+### Get all astronauts
+GET http://localhost:8080/api/v1/astronauts?page=0&size=20&sortBy=astronautCode&direction=ASC
+Authorization: Bearer {{accessToken}}
+
+### Get existing astronaut
+GET http://localhost:8080/api/v1/astronauts/1
+Authorization: Bearer {{accessToken}}
+
+### Get non-existing astronaut
+GET http://localhost:8080/api/v1/astronauts/99999
+Authorization: Bearer {{accessToken}}
+
+### Get astronaut with invalid ID
+GET http://localhost:8080/api/v1/astronauts/0
+Authorization: Bearer {{accessToken}}
+
+### Get astronaut with negative ID
+GET http://localhost:8080/api/v1/astronauts/-1
+Authorization: Bearer {{accessToken}}
+
+### Update existing astronaut
+PUT http://localhost:8080/api/v1/astronauts/1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "astronautCode": "AST-007",
+  "fullName": "Alex Morgan Updated",
+  "email": "alex.updated@example.com",
+  "status": "ACTIVE"
+}
+
+### Update using duplicate astronaut code
+PUT http://localhost:8080/api/v1/astronauts/1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "astronautCode": "AST-008",
+  "fullName": "Alex Morgan",
+  "email": "alex.updated@example.com",
+  "status": "ACTIVE"
+}
+
+### Update non-existing astronaut
+PUT http://localhost:8080/api/v1/astronauts/99999
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "astronautCode": "AST-999",
+  "fullName": "Test Astronaut",
+  "email": "test999@example.com",
+  "status": "ACTIVE"
+}
+
+### Update with invalid ID
+PUT http://localhost:8080/api/v1/astronauts/0
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "astronautCode": "AST-007",
+  "fullName": "Alex Morgan",
+  "email": "alex@example.com",
+  "status": "ACTIVE"
+}
+
+### Delete existing astronaut
+DELETE http://localhost:8080/api/v1/astronauts/1
+Authorization: Bearer {{accessToken}}
+
+### Delete non-existing astronaut
+DELETE http://localhost:8080/api/v1/astronauts/99999
+Authorization: Bearer {{accessToken}}
+
+### Delete with invalid ID
+DELETE http://localhost:8080/api/v1/astronauts/0
+Authorization: Bearer {{accessToken}}
+
+### Delete with negative ID
+DELETE http://localhost:8080/api/v1/astronauts/-1
+Authorization: Bearer {{accessToken}}
+
+### Verify deletion (expected 404 only after the astronaut has been deleted)
+GET http://localhost:8080/api/v1/astronauts/1
+Authorization: Bearer {{accessToken}}
+
+### Public health check
+GET http://localhost:8080/api/v1/health
+
+### Register an astronaut account (pending administrator activation)
+# @name registerAstronaut
+POST http://localhost:8080/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "astronaut@example.com",
+  "password": "ReplaceWithAUniquePassword123!"
+}
+
+### Register duplicate email (expected 409 after the first registration)
+POST http://localhost:8080/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "astronaut@example.com",
+  "password": "ReplaceWithAUniquePassword123!"
+}
+
+### Register with invalid email (expected 400)
+POST http://localhost:8080/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "not-an-email",
+  "password": "ReplaceWithAUniquePassword123!"
+}
+
+### Login before activation (expected 401)
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "astronaut@example.com",
+  "password": "ReplaceWithAUniquePassword123!"
+}
+
+### Login as the bootstrapped administrator
+# @name loginAdministrator
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "BOOTSTRAP_ADMIN_EMAIL",
+  "password": "BOOTSTRAP_ADMIN_PASSWORD"
+}
+
+### Activate the newly registered account (administrator only)
+POST http://localhost:8080/api/v1/auth/admin/accounts/{{registerAstronaut.response.body.$.id}}/activate
+Authorization: Bearer {{adminAccessToken}}
+
+### Login after account activation
+# @name loginAstronaut
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "astronaut@example.com",
+  "password": "ReplaceWithAUniquePassword123!"
+}
+
+### Login with an incorrect password (expected 401)
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "astronaut@example.com",
+  "password": "WrongPassword123!"
+}
+
+### Login with an unknown email (expected 401)
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "unknown@example.com",
+  "password": "ReplaceWithAUniquePassword123!"
+}
+
+### Protected endpoint without a token (expected 401)
+GET http://localhost:8080/api/v1/astronauts
+
+### Protected endpoint with a malformed token (expected 401)
+GET http://localhost:8080/api/v1/astronauts
+Authorization: Bearer not-a-valid-jwt
+
+### Protected endpoint with the access token captured from login
+GET http://localhost:8080/api/v1/astronauts
+Authorization: Bearer {{accessToken}}
+
+### Reuse the access token after its 15-minute expiry (expected 401)
+GET http://localhost:8080/api/v1/astronauts
+Authorization: Bearer {{accessToken}}
+
+### Refresh tokens (run before logout; response contains the rotated tokens)
+# @name refreshAstronautTokens
+POST http://localhost:8080/api/v1/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### Logout (authenticated; revokes the refresh-token family)
+POST http://localhost:8080/api/v1/auth/logout
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### Refresh after logout (expected 401)
+POST http://localhost:8080/api/v1/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### Deactivate the astronaut account (administrator only; run last)
+POST http://localhost:8080/api/v1/auth/admin/accounts/{{registerAstronaut.response.body.$.id}}/deactivate
+Authorization: Bearer {{adminAccessToken}}
+
+### Get the authenticated user's profile
+GET http://localhost:8080/api/v1/users/me
+Authorization: Bearer {{accessToken}}
+
+### Update the authenticated user's profile
+PUT http://localhost:8080/api/v1/users/me/profile
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "username": "alex.morgan",
+  "displayName": "Alex Morgan"
+}
+
+### Search users (administrator only)
+GET http://localhost:8080/api/v1/users?query=astronaut&status=ACTIVE&page=0&size=20&sortBy=email&direction=ASC
+Authorization: Bearer {{adminAccessToken}}
+
+### Get a user (administrator only)
+GET http://localhost:8080/api/v1/users/1
+Authorization: Bearer {{adminAccessToken}}
+
+### Update a user's profile (administrator only)
+PUT http://localhost:8080/api/v1/users/1/profile
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "username": "alex.morgan",
+  "displayName": "Alex Morgan"
+}
+
+### Change user roles (administrator only)
+PUT http://localhost:8080/api/v1/users/1/roles
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "roles": ["ASTRONAUT"]
+}
+
+### Link a user to an astronaut profile (administrator only)
+PUT http://localhost:8080/api/v1/users/1/astronaut-profile
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "astronautId": 1
+}
+
+### Unlink a user from an astronaut profile (administrator only)
+DELETE http://localhost:8080/api/v1/users/1/astronaut-profile
+Authorization: Bearer {{adminAccessToken}}
+
+### Activate a user account (administrator only)
+PUT http://localhost:8080/api/v1/users/1/activate
+Authorization: Bearer {{adminAccessToken}}
+
+### Deactivate a user account (administrator only)
+PUT http://localhost:8080/api/v1/users/1/deactivate
+Authorization: Bearer {{adminAccessToken}}
+
+### Create a medical officer assignment (administrator only)
+POST http://localhost:8080/api/v1/medical-assignments
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "medicalOfficerUserId": 2,
+  "astronautId": 1
+}
+
+### List medical officer assignments (administrator only)
+GET http://localhost:8080/api/v1/medical-assignments?page=0&size=20
+Authorization: Bearer {{adminAccessToken}}
+
+### Get astronauts assigned to the authenticated medical officer
+GET http://localhost:8080/api/v1/medical-assignments/me/astronauts?page=0&size=20
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Remove a medical officer assignment (administrator only)
+DELETE http://localhost:8080/api/v1/medical-assignments/1
+Authorization: Bearer {{adminAccessToken}}
+
+### Create a mission (administrator only)
+POST http://localhost:8080/api/v1/missions
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "missionCode": "MISSION-001",
+  "missionName": "Orbital Research",
+  "description": "Research mission",
+  "startDate": "2030-01-01",
+  "endDate": "2030-06-30",
+  "status": "PLANNED"
+}
+
+### Search missions (administrator or mission control)
+GET http://localhost:8080/api/v1/missions?query=orbital&status=PLANNED&page=0&size=20&sortBy=missionCode&direction=ASC
+Authorization: Bearer {{missionControlAccessToken}}
+
+### Get a mission (administrator or mission control)
+GET http://localhost:8080/api/v1/missions/1
+Authorization: Bearer {{missionControlAccessToken}}
+
+### Update a mission (administrator only)
+PUT http://localhost:8080/api/v1/missions/1
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "missionCode": "MISSION-001",
+  "missionName": "Orbital Research Updated",
+  "description": "Updated mission details",
+  "startDate": "2030-01-01",
+  "endDate": "2030-07-31",
+  "status": "ACTIVE"
+}
+
+### Assign an astronaut to a mission (administrator only)
+PUT http://localhost:8080/api/v1/missions/1/astronauts/1
+Authorization: Bearer {{adminAccessToken}}
+
+### Remove an astronaut from a mission (administrator only)
+DELETE http://localhost:8080/api/v1/missions/1/astronauts/1
+Authorization: Bearer {{adminAccessToken}}
+
+### Archive a mission (administrator only; preserves mission history)
+DELETE http://localhost:8080/api/v1/missions/1
+Authorization: Bearer {{adminAccessToken}}
+
+### Register a device (administrator only)
+POST http://localhost:8080/api/v1/devices
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "deviceName": "Vitals Sensor 01",
+  "serialNumber": "SENSOR-001",
+  "deviceType": "VITALS_SENSOR",
+  "status": "ACTIVE"
+}
+
+### Search devices (administrator or mission control)
+GET http://localhost:8080/api/v1/devices?query=SENSOR-001&type=VITALS_SENSOR&status=ACTIVE&page=0&size=20&sortBy=serialNumber&direction=ASC
+Authorization: Bearer {{missionControlAccessToken}}
+
+### Get a device (administrator or mission control)
+GET http://localhost:8080/api/v1/devices/1
+Authorization: Bearer {{missionControlAccessToken}}
+
+### Update a device (administrator only)
+PUT http://localhost:8080/api/v1/devices/1
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "deviceName": "Vitals Sensor 01",
+  "serialNumber": "SENSOR-001",
+  "deviceType": "VITALS_SENSOR",
+  "status": "ACTIVE"
+}
+
+### Assign a device to an astronaut (administrator only)
+PUT http://localhost:8080/api/v1/devices/1/assign
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "astronautId": 1
+}
+
+### Unassign a device (administrator only)
+PUT http://localhost:8080/api/v1/devices/1/unassign
+Authorization: Bearer {{adminAccessToken}}
+
+### Update device status (administrator only)
+PUT http://localhost:8080/api/v1/devices/1/status
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "status": "MAINTENANCE"
+}
+
+### Get device communication and status history (administrator or mission control)
+GET http://localhost:8080/api/v1/devices/1/history?page=0&size=20
+Authorization: Bearer {{missionControlAccessToken}}
+
+### Get devices assigned to an astronaut (administrator or mission control)
+GET http://localhost:8080/api/v1/devices/astronauts/1?page=0&size=20
+Authorization: Bearer {{missionControlAccessToken}}
+
+### Create a health reading (astronaut, assigned medical officer, or administrator)
+POST http://localhost:8080/api/v1/health/readings
+Authorization: Bearer {{medicalOfficerAccessToken}}
+Content-Type: application/json
+
+{
+  "astronautId": 1,
+  "deviceId": 1,
+  "readingType": "HEART_RATE",
+  "value": 72,
+  "unit": "bpm",
+  "recordedAt": "2025-01-01T12:00:00Z",
+  "dataSource": "DEVICE",
+  "sourceEventId": "replace-with-unique-device-event-id"
+}
+
+### Ingest a batch of health readings (source event IDs make retries idempotent)
+POST http://localhost:8080/api/v1/health/readings/bulk
+Authorization: Bearer {{medicalOfficerAccessToken}}
+Content-Type: application/json
+
+[
+  {
+    "astronautId": 1,
+    "deviceId": 1,
+    "readingType": "SPO2",
+    "value": 98,
+    "unit": "%",
+    "recordedAt": "2025-01-01T12:00:00Z",
+    "dataSource": "DEVICE",
+    "sourceEventId": "replace-with-unique-spo2-event-id"
+  },
+  {
+    "astronautId": 1,
+    "readingType": "BODY_TEMPERATURE",
+    "value": 36.8,
+    "unit": "Cel",
+    "recordedAt": "2025-01-01T12:01:00Z",
+    "dataSource": "MANUAL"
+  }
+]
+
+### Get a health reading by ID (access is checked against its astronaut)
+GET http://localhost:8080/api/v1/health/readings/1
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Get paginated reading history (optional type/from/to filters)
+GET http://localhost:8080/api/v1/health/astronauts/1/readings?type=HEART_RATE&from=2025-01-01T00:00:00Z&to=2025-01-02T00:00:00Z&page=0&size=20
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Get latest readings for an astronaut
+GET http://localhost:8080/api/v1/health/astronauts/1/readings/latest
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Get latest heart-rate reading only
+GET http://localhost:8080/api/v1/health/astronauts/1/readings/latest?type=HEART_RATE
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Get daily health summaries
+GET http://localhost:8080/api/v1/health/astronauts/1/summaries/daily?from=2025-01-01T00:00:00Z&to=2025-01-08T00:00:00Z&type=HEART_RATE
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Get weekly health summaries
+GET http://localhost:8080/api/v1/health/astronauts/1/summaries/weekly?from=2025-01-01T00:00:00Z&to=2025-02-01T00:00:00Z&type=HEART_RATE
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Compare two periods (replace dates with non-overlapping UTC intervals)
+GET http://localhost:8080/api/v1/health/astronauts/1/summaries/compare?firstFrom=2025-01-01T00:00:00Z&firstTo=2025-01-08T00:00:00Z&secondFrom=2025-01-08T00:00:00Z&secondTo=2025-01-15T00:00:00Z&type=HEART_RATE
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### List configured anomaly rules (administrator only; no rules are seeded)
+GET http://localhost:8080/api/v1/anomaly-rules
+Authorization: Bearer {{adminAccessToken}}
+
+### Create a disabled demonstration rule (administrator only)
+### The value is illustrative test data, not a medical threshold or recommendation.
+POST http://localhost:8080/api/v1/anomaly-rules
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "readingType": "HEART_RATE",
+  "minimumValue": null,
+  "maximumValue": 999,
+  "changeThresholdValue": null,
+  "lookbackCount": null,
+  "priority": "INFORMATIONAL",
+  "description": "Demonstration software rule; replace with an approved organizational policy.",
+  "enabled": false
+}
+
+### Enable/update a configured rule only after reviewing organizational policy (administrator only)
+PUT http://localhost:8080/api/v1/anomaly-rules/1
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "readingType": "HEART_RATE",
+  "minimumValue": null,
+  "maximumValue": 999,
+  "changeThresholdValue": null,
+  "lookbackCount": null,
+  "priority": "INFORMATIONAL",
+  "description": "Demonstration software rule; not medically validated and not diagnostic.",
+  "enabled": true
+}
+
+### Create a manual alert (administrator or assigned medical officer)
+POST http://localhost:8080/api/v1/alerts
+Authorization: Bearer {{medicalOfficerAccessToken}}
+Content-Type: application/json
+
+{
+  "astronautId": 1,
+  "title": "Operational review requested",
+  "description": "Example workflow alert for local API verification.",
+  "reason": "Manually submitted test alert; not a clinical assessment.",
+  "priority": "LOW"
+}
+
+### List alerts for an astronaut
+GET http://localhost:8080/api/v1/alerts/astronauts/1?status=OPEN&priority=LOW&page=0&size=20
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Get an alert and its workflow history
+GET http://localhost:8080/api/v1/alerts/1
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+GET http://localhost:8080/api/v1/alerts/1/history?page=0&size=20
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Acknowledge, escalate, resolve, then close (close only after resolution)
+PUT http://localhost:8080/api/v1/alerts/1/acknowledge
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+PUT http://localhost:8080/api/v1/alerts/1/escalate
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+PUT http://localhost:8080/api/v1/alerts/1/resolve
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+PUT http://localhost:8080/api/v1/alerts/1/close
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Create a private medical observation (administrator or assigned medical officer)
+POST http://localhost:8080/api/v1/medical-observations
+Authorization: Bearer {{medicalOfficerAccessToken}}
+Content-Type: application/json
+
+{
+  "astronautId": 1,
+  "observationText": "Example private observation for local workflow testing.",
+  "relatedAlertId": null,
+  "relatedReadingId": null,
+  "followUpDate": "2025-01-08"
+}
+
+### List observations for an astronaut (administrator or assigned medical officer)
+GET http://localhost:8080/api/v1/medical-observations/astronauts/1?page=0&size=20
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Read an observation and its change history
+GET http://localhost:8080/api/v1/medical-observations/1
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+GET http://localhost:8080/api/v1/medical-observations/1/history?page=0&size=20
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Add and complete a follow-up action
+POST http://localhost:8080/api/v1/medical-observations/1/follow-ups
+Authorization: Bearer {{medicalOfficerAccessToken}}
+Content-Type: application/json
+
+{
+  "actionText": "Example follow-up action for local workflow testing.",
+  "dueDate": "2025-01-08"
+}
+
+###
+GET http://localhost:8080/api/v1/medical-observations/1/follow-ups
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+PUT http://localhost:8080/api/v1/medical-observations/1/follow-ups/1/status
+Authorization: Bearer {{medicalOfficerAccessToken}}
+Content-Type: application/json
+
+{
+  "status": "COMPLETED"
+}
+
+### Astronaut dashboard data (self or permitted administrator/assigned officer)
+GET http://localhost:8080/api/v1/dashboard/astronauts/1/latest-readings
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+GET http://localhost:8080/api/v1/dashboard/astronauts/1/active-alerts
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+GET http://localhost:8080/api/v1/dashboard/astronauts/1/health-summary?from=2025-01-01T00:00:00Z&to=2025-01-08T00:00:00Z&bucket=DAY&type=HEART_RATE
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+GET http://localhost:8080/api/v1/dashboard/astronauts/1/trends?from=2025-01-01T00:00:00Z&to=2025-01-08T00:00:00Z&type=HEART_RATE
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+GET http://localhost:8080/api/v1/dashboard/astronauts/1/health-comparison?firstFrom=2025-01-01T00:00:00Z&firstTo=2025-01-08T00:00:00Z&secondFrom=2025-01-08T00:00:00Z&secondTo=2025-01-15T00:00:00Z&type=HEART_RATE
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Assigned astronaut summaries (administrator or medical officer)
+GET http://localhost:8080/api/v1/dashboard/medical-officer/astronauts?page=0&size=20
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Mission operational summaries only (administrator or mission control; no raw readings/observations)
+GET http://localhost:8080/api/v1/dashboard/missions?status=ACTIVE&page=0&size=20
+Authorization: Bearer {{missionControlAccessToken}}
+
+###
+GET http://localhost:8080/api/v1/dashboard/missions/1
+Authorization: Bearer {{missionControlAccessToken}}
+
+### Expected 403: mission control cannot access raw astronaut readings
+GET http://localhost:8080/api/v1/health/astronauts/1/readings
+Authorization: Bearer {{missionControlAccessToken}}
+
+### Expected 403: mission control cannot read private medical observations
+GET http://localhost:8080/api/v1/medical-observations/astronauts/1
+Authorization: Bearer {{missionControlAccessToken}}
+
+### @name uploadWellbeingAudio
+# Replace the file path with a valid audio/webm recording; max upload size is configurable.
+POST http://localhost:8080/api/v1/wellbeing/reports/audio-drafts
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=AstroAudioBoundary
+
+--AstroAudioBoundary
+Content-Disposition: form-data; name="file"; filename="recording.webm"
+Content-Type: audio/webm
+
+< ./replace-with-valid-audio.webm
+--AstroAudioBoundary--
+
+### Preview an unsubmitted audio draft (owner only)
+GET http://localhost:8080/api/v1/wellbeing/reports/audio-drafts/{{wellbeingAudioId}}
+Authorization: Bearer {{accessToken}}
+
+### Delete an unsubmitted recording (owner only; use before attaching it to a report)
+DELETE http://localhost:8080/api/v1/wellbeing/reports/audio-drafts/{{wellbeingAudioId}}
+Authorization: Bearer {{accessToken}}
+
+### @name submitWellbeingReport
+# Submit a report with audio; reportText may be null when audio is attached.
+POST http://localhost:8080/api/v1/wellbeing/reports
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "category": "STRESSED",
+  "reportText": "Example report for local workflow verification.",
+  "audioRecordingId": {{wellbeingAudioId}}
+}
+
+### Astronaut's own well-being report history
+GET http://localhost:8080/api/v1/wellbeing/reports/mine?page=0&size=20
+Authorization: Bearer {{accessToken}}
+
+### Medical officer inbox (only assigned astronauts)
+GET http://localhost:8080/api/v1/wellbeing/reports/inbox?status=SUBMITTED&page=0&size=20
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Edit a report while it is still SUBMITTED
+PUT http://localhost:8080/api/v1/wellbeing/reports/{{wellbeingReportId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "category": "STRESSED",
+  "reportText": "Updated report text before review.",
+  "audioRecordingId": null
+}
+
+### Authorized medical officer/admin playback (private; not a public URL)
+GET http://localhost:8080/api/v1/wellbeing/reports/{{wellbeingReportId}}/audio
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Begin review and add a private medical observation
+PUT http://localhost:8080/api/v1/wellbeing/reports/{{wellbeingReportId}}/review
+Authorization: Bearer {{medicalOfficerAccessToken}}
+Content-Type: application/json
+
+{
+  "status": "UNDER_REVIEW",
+  "reviewNotes": "Private review note.",
+  "observationText": "Private observation entered by the assigned medical officer.",
+  "followUpAssigneeId": null,
+  "followUpDueDate": null
+}
+
+### Assign a follow-up (choose an assigned medical officer ID and a future date)
+PUT http://localhost:8080/api/v1/wellbeing/reports/{{wellbeingReportId}}/review
+Authorization: Bearer {{medicalOfficerAccessToken}}
+Content-Type: application/json
+
+{
+  "status": "FOLLOW_UP_REQUIRED",
+  "reviewNotes": "Follow-up is required.",
+  "observationText": null,
+  "followUpAssigneeId": 2,
+  "followUpDueDate": "2026-12-01"
+}
+
+### Close a report after follow-up is complete
+PUT http://localhost:8080/api/v1/wellbeing/reports/{{wellbeingReportId}}/review
+Authorization: Bearer {{medicalOfficerAccessToken}}
+Content-Type: application/json
+
+{
+  "status": "CLOSED",
+  "reviewNotes": "Workflow completed.",
+  "observationText": null,
+  "followUpAssigneeId": null,
+  "followUpDueDate": null
+}
+
+### @name listNotifications
+# In-app notifications for the authenticated user only
+GET http://localhost:8080/api/v1/notifications?page=0&size=20
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+GET http://localhost:8080/api/v1/notifications/unread-count
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+PUT http://localhost:8080/api/v1/notifications/{{notificationId}}/read
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+PUT http://localhost:8080/api/v1/notifications/read-all
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### Medical officer pending follow-up inbox
+GET http://localhost:8080/api/v1/medical-observations/follow-ups/inbox?page=0&size=20
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### CSV health, alert, follow-up, and well-being exports are permission checked
+GET http://localhost:8080/api/v1/reports/astronauts/1/health?from=2026-11-01T00:00:00Z&to=2026-11-15T00:00:00Z&format=CSV
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+GET http://localhost:8080/api/v1/reports/alerts?astronautId=1&format=CSV
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+GET http://localhost:8080/api/v1/reports/astronauts/1/follow-ups?format=CSV
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+###
+GET http://localhost:8080/api/v1/reports/astronauts/1/wellbeing?format=CSV
+Authorization: Bearer {{medicalOfficerAccessToken}}
+
+### PDF mission operational summary (administrator or mission control; no raw readings or observations)
+GET http://localhost:8080/api/v1/reports/missions/1?format=PDF
+Authorization: Bearer {{missionControlAccessToken}}
+
+### Administrator audit history (passwords, tokens, report text, and audio contents are not logged)
+GET http://localhost:8080/api/v1/audit-events?page=0&size=50
+Authorization: Bearer {{adminAccessToken}}
