@@ -9,9 +9,8 @@ RUN ./mvnw -B -DskipTests package
 
 FROM eclipse-temurin:27-jre-ubi10-minimal
 
-RUN apt-get update \
-	&& apt-get install -y --no-install-recommends curl \
-	&& apt-get clean
+RUN microdnf install -y curl \
+    && microdnf clean all
 
 WORKDIR /app
 RUN groupadd --system --gid 10001 astra \
