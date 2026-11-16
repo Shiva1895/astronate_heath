@@ -1,4 +1,4 @@
-FROM eclipse-temurin:27-jdk-jammy AS build
+FROM eclipse-temurin:27-jdk-ubi10-minimal AS build
 
 WORKDIR /workspace
 COPY .mvn .mvn
@@ -7,7 +7,7 @@ RUN chmod +x ./mvnw && ./mvnw -B dependency:go-offline
 COPY src src
 RUN ./mvnw -B -DskipTests package
 
-FROM eclipse-temurin:27-jre-jammy
+FROM eclipse-temurin:27-jre-ubi10-minimal
 
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends curl \
